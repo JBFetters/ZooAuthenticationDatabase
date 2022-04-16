@@ -10,16 +10,15 @@
 *                   If the password is incorrect the user will have three attempts. After the third attempt the system will leave the program because of invalid credentials. If the password is correct the system determines the user role and allows access to the correct system per their role.
 *                   
 * Modification History:
-* 2 APRIL 2022 Replaced Credential File Read with reading the Credential Database
-* Created four new function to replace Credential file read
+* 2 APRIL 2022 
+*    Replaced Credential File Read with reading the Credential Database
+*    Created three new function, checkId, checkMD5, check role to replace Credential file read.
 * 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
+* 16 APRIL 2022 
+*    Removed checkRole function.
+*    Added role to MD5 function to pull the role from the credential database.
+*    Updated message when user inputted wrong user id and password.
+*    Update message when user is locked out.
 * 
 */
 
@@ -47,7 +46,8 @@ string changeString(string change); // delcaring changeString; takes uppercase o
 // For the database
 bool checkId(string userId); // Using Credential database verify user Id
 bool checkMD5(string md5); // Using Credential database verify user password convered to MD5 Hash
-bool checkRole(string role); // Using Credential database verify user role
+string passHash;
+string role;
 
 int main()
 {
@@ -70,12 +70,12 @@ int main()
     int index = 0; // Index
     
 
-    //***Starts Main Program***
+    //***STARTS MAIN PROGRAM***
 
     do
     {
         //User Welcome message
-        cout << "***WELCOME*** \n";
+        cout << "***WELCOME to ZOO APPLICAITON*** \n";
 
         cout << "Enter User ID \n";
         cout << " Or exit to leave \n";
@@ -117,10 +117,10 @@ int main()
 
                     while (validCredentials != true && index < 6)   //  search credentials to see if password is found
                     {
-                        if (checkMD5(originalPassword))
+                        if (checkMD5(originalPassword)) 
                         {
                             validCredentials = true;        // password was found
-                            credentialRole = checkRole(credentialRole);      // set role equal to the permission for the user
+                            credentialRole = checkMD5(role);      // set role equal to the permission for the user
                         }
                         index++; // index until user inputes match credential file
                     }
@@ -147,14 +147,14 @@ int main()
                             attempts = 0;
                         }
                     }
-                    else
+                    else // user password is incorrect
                     {
                         cout << "Password Incorrect! TRY AGAIN" << endl;
                         attempts++;
                         validCredentials == false;
                         exitProgram = true;
                     }
-                } while ((!validCredentials) && attempts < 3); // (vaildCred && attempt) || (valid Cre || attempt)
+                } while ((!validCredentials) && attempts < 3); // while validCredentials is not true and attempts less than 3
             }
             else // user id incorrect
             {
@@ -183,8 +183,8 @@ int main()
     } while (exitProgram == false); // while password is correct or user id is correct keep running
 }
 
-//Function to opena file, read a file and close a file
-void outputTextFile(string filePathName)
+
+void outputTextFile(string filePathName) //Function to opena file, read a file and close a file
 {
     fstream outputTextFile; //File variable
     outputTextFile.open(filePathName); // opening the text file
@@ -199,20 +199,17 @@ void outputTextFile(string filePathName)
 }
 
 string changeString(string change) //Function Converts Users Id String to Lowercase
-
 {
     for (int x = 0; x < change.length(); x++) // index x until x less than the length of change
-
     {
         if (change[x] >= 'A' && change[x] <= 'Z') // if the change[x] greater than ascii A and less than ascii Z
         {
             change[x] = change[x] + 32; // user id array [x],  add 32 (decial); 'A' = 65; 65+32 = 97; '97' = a
         }
     } return change; //returns user id all lowercase
-
 }
 
-bool checkId(string userId)
+bool checkId(string userId) //Verify user ID valid in credential database
 {
     int exit;
     sql = "SELECT * FROM CREDENTIALS WHERE USER_ID = ?;";//quary database
@@ -227,7 +224,6 @@ bool checkId(string userId)
     if (sqlite3_step(stmt) == SQLITE_ROW)
     {
         string id = (char*)sqlite3_column_text(stmt, 0); // set id to database column
-
         return true;
     }
     else
@@ -235,15 +231,15 @@ bool checkId(string userId)
         return false;
     }
 
-
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }
-bool checkMD5(string md5)
+
+bool checkMD5(string md5) // Verify user input convered to MD5 hash is valid in the credential database
 {
     int exit;
 
-    sql = "SELECT * FROM CREDENTIALS WHERE HASH_PASSWORD = ?;";
+    sql = "SELECT * FROM CREDENTIALS WHERE HASH_PASSWORD = ?;"; //quary database
     exit = sqlite3_open(dir, &db); // open database
 
     sqlite3_stmt* stmt; //
@@ -254,7 +250,8 @@ bool checkMD5(string md5)
 
     if (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        string passHash = (char*)sqlite3_column_text(stmt, 1); // set password to database column
+        passHash = (char*)sqlite3_column_text(stmt, 1); // set password to database column
+        role = (char*)sqlite3_column_text(stmt, 3); // set role to database column
 
         return true;
     }
@@ -262,39 +259,6 @@ bool checkMD5(string md5)
     {
         return false;
     }
-
-
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-}
-
-
-
-bool checkRole(string role)
-{
-    int exit;
-    //sql = "SELECT * FROM CREDENTIALS WHERE USER_ID = ?;"; //quary database
-    sql = "SELECT * FROM CREDENTIALS WHERE ROLE = ?;";
-    exit = sqlite3_open(dir, &db); // open database
-
-    sqlite3_stmt* stmt; //
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL); // prepare
-
-    // set the ? parameter to the userId or password you are looking for:
-    sqlite3_bind_text(stmt, 1, role.c_str(), -1, SQLITE_TRANSIENT); // find password
-
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        string role = (char*)sqlite3_column_text(stmt, 3); // set id to database column
-
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-
-
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }
